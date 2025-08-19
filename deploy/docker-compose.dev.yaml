@@ -24,7 +24,7 @@ services:
     restart: always
 
   flower:
-    image: nvcr.io/nvidia/blueprint/foundational-flywheel-server:${TAG:-0.2.0}
+    image: nvcr.io/nvidia/blueprint/foundational-flywheel-server:${TAG:-0.3.0}
     build:
       context: ..
       dockerfile: ./deploy/Dockerfile
@@ -33,10 +33,13 @@ services:
       - "5555:5555"
     environment:
       - ELASTICSEARCH_URL=http://elasticsearch:9200
+      - ES_COLLECTION_NAME=${ES_COLLECTION_NAME:-flywheel}
       - REDIS_URL=redis://redis:6379/0
       - MONGODB_URL=mongodb://mongodb:27017
       - MONGODB_DB=flywheel
-      - NGC_API_KEY=${NGC_API_KEY}
+      - NVIDIA_API_KEY=${NVIDIA_API_KEY}
+      - LLM_JUDGE_API_KEY=${LLM_JUDGE_API_KEY:-${NVIDIA_API_KEY}}
+      - EMB_API_KEY=${EMB_API_KEY:-${NVIDIA_API_KEY}}
     command: ["uv", "run", "celery", "-A", "src.tasks.tasks", "flower", "--port=5555"]
     restart: always
 
