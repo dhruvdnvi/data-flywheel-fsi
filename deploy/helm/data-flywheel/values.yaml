@@ -411,29 +411,6 @@ foundationalFlywheelServer:
       limit: 1000 # null means no limit
       parse_function_arguments: true # parse function arguments to JSON objects for tool calling records
 
-    # ICL config:
-    # max context length, reserved tokens, max examples, min examples
-    # example_selection: "uniform_distribution" or "semantic_similarity"
-    icl_config:
-      max_context_length: 32768
-      reserved_tokens: 4096
-      max_examples: 3
-      min_examples: 1
-      example_selection: "semantic_similarity"
-      similarity_config:
-        relevance_ratio: 0.7
-        embedding_nim_config:
-          # deployment_type: "remote"
-          # url: "http://0.0.0.0:9022/v1/embeddings"
-          # model_name: "nvidia/llama-3.2-nv-embedqa-1b-v2"
-          deployment_type: "local"
-          model_name: "nvidia/llama-3.2-nv-embedqa-1b-v2"
-          context_length: 32768
-          gpus: 1
-          pvc_size: "25Gi"
-          tag: "1.9.0"
-
-
     # Training config:
     # Customization config with default values
     training_config:

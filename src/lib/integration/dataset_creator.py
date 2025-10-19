@@ -7,7 +7,6 @@ from bson import ObjectId
 from src.api.db import get_db
 from src.api.models import DatasetType, WorkloadClassification
 from src.config import DataSplitConfig, settings
-from src.lib.flywheel.icl_selection import ICLSelection
 from src.lib.flywheel.util import (
     format_evaluator,
     format_training_data,
@@ -47,7 +46,7 @@ class DatasetCreator:
 
     def create_datasets(
         self, workload_type: WorkloadClassification
-    ) -> tuple[str | None, dict[str, str]]:
+    ) -> dict[str, str]:
         # Validate and clean records
         validator = DataValidator()
         validated_records = validator.validate_records(
@@ -74,10 +73,6 @@ class DatasetCreator:
             f"Split {len(self.records)} records into {len(eval_records)} eval, {len(train_records)} train, {len(val_records)} val"
         )
 
-        # Keep original records for ICL selection before formatting
-        original_train_records = train_records.copy()
-        original_eval_records = eval_records.copy()
-
         ## format the training data
         train_records = format_training_data(train_records, workload_type)
         val_records = format_training_data(val_records, workload_type)
@@ -94,17 +89,6 @@ class DatasetCreator:
         eval_dataset_name = f"flywheel-eval-{self.output_dataset_prefix + '-' if self.output_dataset_prefix else ''}{self.workload_id}-{self.ts}"
         eval_uploader = DataUploader(dataset_name=eval_dataset_name)
         eval_uploader.upload_data(eval_jsonl_data, "eval_data.jsonl")
-
-        icl_selector = ICLSelection(settings.icl_config, self.workload_id, self.client_id)
-        index_name, icl_records = icl_selector.generate_icl_records(
-            original_train_records, workload_type, original_eval_records
-        )
-        # Format ICL records for evaluation as well
-        icl_records = format_evaluator(icl_records)
-        icl_jsonl_data = "\n".join(json.dumps(record) for record in icl_records)
-        icl_dataset_name = f"flywheel-icl-{self.output_dataset_prefix + '-' if self.output_dataset_prefix else ''}{self.workload_id}-{self.ts}"
-        icl_uploader = DataUploader(dataset_name=icl_dataset_name)
-        icl_uploader.upload_data(icl_jsonl_data, "eval_data.jsonl")
 
         train_dataset_name = f"flywheel-train-{self.output_dataset_prefix + '-' if self.output_dataset_prefix else ''}{self.workload_id}-{self.ts}"
         train_uploader = DataUploader(dataset_name=train_dataset_name)
@@ -123,11 +107,6 @@ class DatasetCreator:
                             "nmp_uri": eval_uploader.get_file_uri(),
                         },
                         {
-                            "name": icl_dataset_name,
-                            "num_records": len(icl_records),
-                            "nmp_uri": icl_uploader.get_file_uri(),
-                        },
-                        {
                             "name": train_dataset_name,
                             "num_records": len(train_records),
                             "nmp_uri": train_uploader.get_file_uri(),
@@ -137,11 +116,7 @@ class DatasetCreator:
             },
         )
 
-        return (
-            index_name,
-            {
-                DatasetType.BASE: eval_dataset_name,
-                DatasetType.ICL: icl_dataset_name,  # as testing record are converted to icl records and uploaded
-                DatasetType.TRAIN: train_dataset_name,
-            },
-        )
+        return {
+            DatasetType.BASE: eval_dataset_name,
+            DatasetType.TRAIN: train_dataset_name,
+        }

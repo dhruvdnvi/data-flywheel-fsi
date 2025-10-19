@@ -1,0 +1,130 @@
+╔═══════════════════════════════════════════════════════════════════════════════╗
+║                    DATA FLYWHEEL WORKFLOW (AFTER ICL REMOVAL)                 ║
+╚═══════════════════════════════════════════════════════════════════════════════╝
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  ENTRY POINT: run_nim_workflow_dag(workload_id, flywheel_run_id, client_id) │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                        │
+                                        ▼
+                        ┌───────────────────────────────┐
+                        │  1. initialize_workflow()     │
+                        │  - Create flywheel run        │
+                        │  - Create LLM judge run       │
+                        │  - Create NIM runs (pending)  │
+                        └───────────────────────────────┘
+                                        │
+                                        ▼
+                        ┌───────────────────────────────┐
+                        │  2. create_datasets()         │
+                        │  - Export records from ES     │
+                        │  - Identify workload type     │
+                        │  - Split: eval/train/val      │
+                        │  - Upload BASE dataset ✓      │
+                        │  - Upload TRAIN dataset ✓     │
+                        │  ❌ NO ICL dataset            │
+                        │  ❌ NO embeddings             │
+                        └───────────────────────────────┘
+                                        │
+                                        ▼
+                        ┌───────────────────────────────┐
+                        │  3. wait_for_llm_as_judge()   │
+                        │  - Wait for judge model       │
+                        └───────────────────────────────┘
+                                        │
+                                        ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    4. FOR EACH NIM (Parallel Processing)                     │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                        │
+                    ┌───────────────────┴───────────────────┐
+                    │                                       │
+                    ▼                                       ▼
+    ┌─────────────────────────────┐       ┌─────────────────────────────┐
+    │  NIM 1: llama-3.2-1b        │       │  NIM 2: llama-3.2-3b        │
+    └─────────────────────────────┘       └─────────────────────────────┘
+                    │                                       │
+                    │         (Same process for each)       │
+                    └───────────────────┬───────────────────┘
+                                        │
+                                        ▼
+                        ┌───────────────────────────────┐
+                        │  4a. spin_up_nim()            │
+                        │  - Deploy NIM                 │
+                        │  - Wait for model sync        │
+                        └───────────────────────────────┘
+                                        │
+                                        ▼
+                    ┌───────────────────┴───────────────────┐
+                    │   PARALLEL EVALUATION TASKS           │
+                    └───────────────────────────────────────┘
+                    │                                       │
+                    ▼                                       ▼
+    ┌───────────────────────────┐       ┌───────────────────────────────┐
+    │  4b.i. run_base_eval()    │       │  4b.ii. Customization Chain   │
+    │  ----------------------   │       │  --------------------------   │
+    │  EvalType.BASE            │       │  ┌─────────────────────────┐ │
+    │  DatasetType.BASE         │       │  │ start_customization()   │ │
+    │                           │       │  │ - Fine-tune with LoRA   │ │
+    │  Workload routing:        │       │  └────────────┬────────────┘ │
+    │  ├─ TOOL_CALLING →        │       │               ▼              │
+    │  │  tool calling metrics  │       │  ┌─────────────────────────┐ │
+    │  └─ GENERIC →             │       │  │ run_customization_eval()│ │
+    │     F1 score ✓            │       │  │ EvalType.CUSTOMIZED     │ │
+    │                           │       │  │ DatasetType.BASE        │ │
+    │  ❌ NO ICL eval           │       │  │ - F1 score for GENERIC ✓│ │
+    └───────────────────────────┘       │  └─────────────────────────┘ │
+                    │                   └───────────────────────────────┘
+                    │                                       │
+                    └───────────────────┬───────────────────┘
+                                        │
+                                        ▼
+                        ┌───────────────────────────────┐
+                        │  4c. shutdown_deployment()    │
+                        │  - Clean up NIM resources     │
+                        └───────────────────────────────┘
+                                        │
+                ┌───────────────────────┴───────────────────┐
+                │    (Repeat for each NIM in parallel)      │
+                └───────────────────────┬───────────────────┘
+                                        │
+                                        ▼
+                        ┌───────────────────────────────┐
+                        │  5. finalize_flywheel_run()   │
+                        │  - Update run status          │
+                        │  - Calculate metrics          │
+                        │  - Log to MLflow              │
+                        └───────────────────────────────┘
+                                        │
+                                        ▼
+                                    ┌───────┐
+                                    │  END  │
+                                    └───────┘
+
+╔═══════════════════════════════════════════════════════════════════════════════╗
+║                            KEY CHANGES (ICL REMOVAL)                          ║
+╚═══════════════════════════════════════════════════════════════════════════════╝
+
+❌ REMOVED:
+  - Embedding NIM spin-up (before create_datasets)
+  - ICL dataset creation (in create_datasets)
+  - run_icl_eval task (parallel with run_base_eval)
+  - Embedding cleanup (in finally blocks)
+
+✓ KEPT & MODIFIED:
+  - run_base_eval: Now uses F1 scores for GENERIC workloads
+  - run_customization_eval: Now uses F1 scores for GENERIC workloads
+  - create_datasets: Simplified to BASE + TRAIN only
+
+╔═══════════════════════════════════════════════════════════════════════════════╗
+║                      EVALUATION CONFIG FOR GENERIC                            ║
+╚═══════════════════════════════════════════════════════════════════════════════╝
+
+Evaluator.run_evaluation(workload_type=GENERIC) calls:
+  └─ get_chat_completion_config()
+      └─ get_chat_completion_metrics()
+          └─ Returns: {"f1": {"type": "f1", "params": {...}}}
+
+Result: NeMo Evaluator computes F1 scores comparing:
+  - Prediction: Model's generated text
+  - Ground Truth: item.response.choices[0].message.content

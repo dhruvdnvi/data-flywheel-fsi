@@ -21,17 +21,9 @@ mlflow_config:
   artifact_location: "./mlruns"
 
 llm_judge_config:
-  # deployment_type: "remote"
-  # url: "http://0.0.0.0:9022/v1/chat/completions"
-  # model_name: "meta/llama-3.3-70b-instruct"
-
-  # To spin up a dedicated NIM in your cluster, comment the above uncomment and fill these:
-  deployment_type: "local"
-  model_name: "meta/llama-3.3-70b-instruct"
-  context_length: 32768
-  gpus: 4
-  pvc_size: 25Gi
-  tag: "1.8.5"
+  deployment_type: "remote"
+  url: "https://integrate.api.nvidia.com/v1/chat/completions"
+  model_name: "meta/llama-3.1-70b-instruct"
 
 nims:
   - model_name: "meta/llama-3.2-1b-instruct"
@@ -47,35 +39,17 @@ nims:
       max_seq_length: 8192
 
 
-  # - model_name: "meta/llama-3.2-3b-instruct"
-  #   model_type: "llm"
-  #   context_length: 32768
-  #   gpus: 1
-  #   pvc_size: 25Gi
-  #   tag: "1.8.3"
-  #   customization_enabled: false
-
-
-  # - model_name: "meta/llama-3.1-8b-instruct"
-  #   model_type: "llm"
-  #   context_length: 32768
-  #   gpus: 1
-  #   pvc_size: 25Gi
-  #   tag: "1.8.3"
-  #   customization_enabled: true
-  #   customizer_configs:
-  #     target: "meta/llama-3.1-8b-instruct@2.0"
-  #     gpus: 1
-  #     max_seq_length: 8192
-
-
-  # - model_name: "meta/llama-3.3-70b-instruct"
-  #   model_type: "llm"
-  #   context_length: 32768
-  #   gpus: 4
-  #   pvc_size: 25Gi
-  #   tag: "1.8.5"
-
+  - model_name: "meta/llama-3.2-3b-instruct"
+    model_type: "llm"
+    context_length: 8192
+    gpus: 1
+    pvc_size: 25Gi
+    tag: "1.8.3"
+    customization_enabled: true
+    customizer_configs:
+      target: "meta/llama-3.2-3b-instruct@2.0"
+      gpus: 1
+      max_seq_length: 8192
 
 # Data split config:
 # train, val, eval split sizes and ratios
@@ -86,28 +60,6 @@ data_split_config:
   random_seed: null
   limit: 1000 # null means no limit
   parse_function_arguments: true # parse function arguments to JSON objects for tool calling records
-
-# ICL config:
-# max context length, reserved tokens, max examples, min examples
-# example_selection: "uniform_distribution" or "semantic_similarity"
-icl_config:
-  max_context_length: 32768
-  reserved_tokens: 4096
-  max_examples: 3
-  min_examples: 1
-  example_selection: "semantic_similarity"
-  similarity_config:
-    relevance_ratio: 0.7
-    embedding_nim_config:
-      # deployment_type: "remote"
-      # url: "http://0.0.0.0:9022/v1/embeddings"
-      # model_name: "nvidia/llama-3.2-nv-embedqa-1b-v2"
-      deployment_type: "local"
-      model_name: "nvidia/llama-3.2-nv-embedqa-1b-v2"
-      context_length: 32768
-      gpus: 1
-      pvc_size: "25Gi"
-      tag: "1.9.0"
 
 # Training config:
 # Customization config with default values

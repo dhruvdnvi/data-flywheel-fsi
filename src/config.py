@@ -371,14 +371,16 @@ class Settings(BaseSettings):
     llm_judge_config: LLMJudgeConfig
     training_config: TrainingConfig
     data_split_config: DataSplitConfig
-    icl_config: ICLConfig
+    icl_config: ICLConfig | None = None  # Made optional since ICL is no longer used
     logging_config: LoggingConfig = Field(default_factory=LoggingConfig)
     mlflow_config: MLflowConfig = Field(default_factory=MLflowConfig)
 
     @model_validator(mode="after")
     def validate_icl_and_data_split_consistency(self) -> "Settings":
         """Validate that max_examples in ICL config doesn't exceed eval_size in data split config."""
-        self.icl_config.validate_examples_limit(self.data_split_config.eval_size)
+        # Skip validation if ICL config is not provided (ICL feature is deprecated)
+        if self.icl_config:
+            self.icl_config.validate_examples_limit(self.data_split_config.eval_size)
         return self
 
     @model_validator(mode="after")
@@ -428,15 +430,18 @@ class Settings(BaseSettings):
                     unique_nims.append(nim)
                     seen_models.add(nim["model_name"])
 
-            # Handle ICL config with similarity config
-            icl_data = config_data["icl_config"]
-            if icl_data.get("similarity_config") and icl_data["similarity_config"].get(
-                "embedding_nim_config"
-            ):
-                icl_data["similarity_config"]["embedding_nim_config"] = EmbeddingConfig.from_json(
-                    icl_data["similarity_config"]["embedding_nim_config"]
-                )
-                icl_data["similarity_config"] = SimilarityConfig(**icl_data["similarity_config"])
+            # Handle ICL config with similarity config (optional - ICL is deprecated)
+            icl_config = None
+            if "icl_config" in config_data:
+                icl_data = config_data["icl_config"]
+                if icl_data.get("similarity_config") and icl_data["similarity_config"].get(
+                    "embedding_nim_config"
+                ):
+                    icl_data["similarity_config"]["embedding_nim_config"] = EmbeddingConfig.from_json(
+                        icl_data["similarity_config"]["embedding_nim_config"]
+                    )
+                    icl_data["similarity_config"] = SimilarityConfig(**icl_data["similarity_config"])
+                icl_config = ICLConfig(**icl_data)
 
             return cls(
                 nmp_config=NMPConfig(**config_data["nmp_config"]),
@@ -444,7 +449,7 @@ class Settings(BaseSettings):
                 llm_judge_config=llm_judge_config,
                 training_config=training_config,
                 data_split_config=DataSplitConfig(**config_data["data_split_config"]),
-                icl_config=ICLConfig(**icl_data),
+                icl_config=icl_config,
                 logging_config=logging_config,
                 mlflow_config=mlflow_config,
             )

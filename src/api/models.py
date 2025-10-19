@@ -27,7 +27,6 @@ class EvalType(str, Enum):
     """Types of evaluations that can be performed."""
 
     BASE = "base-eval"
-    ICL = "icl-eval"
     CUSTOMIZED = "customized-eval"
 
     @classmethod
@@ -44,7 +43,6 @@ class DatasetType(str, Enum):
     """Types of datasets that can be used for evaluations."""
 
     BASE = "base-dataset"
-    ICL = "icl-dataset"
     TRAIN = "train-dataset"
 
 

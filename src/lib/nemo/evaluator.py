@@ -213,6 +213,43 @@ class Evaluator:
 
         return {"template": template}
 
+    def get_chat_completion_metrics(self) -> dict[str, Any]:
+        """Get F1 score metrics for chat completion evaluation."""
+        return {
+            "f1": {
+                "type": "f1",
+                "params": {
+                    "ground_truth": "{{ item.response.choices[0].message.content | trim }}"
+                }
+            }
+        }
+
+    def get_chat_completion_config(
+        self, dataset_name: str, test_file: str, limit: int | None = None
+    ) -> dict[str, Any]:
+        """
+        Get chat completion evaluation configuration with F1 scores.
+
+        Args:
+            dataset_name: Name of the dataset
+            test_file: Name of the test file in the dataset
+            limit: Maximum number of samples to evaluate
+
+        Returns:
+            Dict containing the evaluation configuration
+        """
+        return {
+            "type": "custom",
+            "tasks": {
+                "chat-completion": {
+                    "type": "chat-completion",
+                    "dataset": self._create_dataset_config(dataset_name, test_file, limit),
+                    "params": self.get_template(),
+                    "metrics": self.get_chat_completion_metrics(),
+                }
+            },
+        }
+
     def get_llm_as_judge_config(
         self, dataset_name: str, test_file: str, limit: int | None = None
     ) -> dict[str, Any]:
@@ -465,10 +502,15 @@ class Evaluator:
                 config = self.get_tool_llm_as_judge_config(
                     dataset_name=dataset_name, test_file=test_file, limit=limit
                 )
-        else:
-            config = self.get_llm_as_judge_config(
+            else:
+                raise ValueError(f"Unsupported tool eval type: {tool_eval_type}")
+        elif workload_type == WorkloadClassification.GENERIC:
+            # Use chat completion with F1 score for generic workloads (e.g., classification tasks)
+            config = self.get_chat_completion_config(
                 dataset_name=dataset_name, test_file=test_file, limit=limit
             )
+        else:
+            raise ValueError(f"Unsupported workload type: {workload_type}")
 
         res = requests.post(
             f"{self.nemo_url}/v1/evaluation/jobs",

@@ -38,7 +38,7 @@ from src.api.models import (
     WorkloadClassification,
 )
 from src.api.schemas import DeploymentStatus
-from src.config import DataSplitConfig, EmbeddingConfig, NIMConfig, settings
+from src.config import DataSplitConfig, NIMConfig, settings
 from src.lib.flywheel.cancellation import FlywheelCancelledError, check_cancellation
 from src.lib.flywheel.cleanup_manager import CleanupManager
 from src.lib.flywheel.job_manager import FlywheelJobManager
@@ -46,7 +46,6 @@ from src.lib.flywheel.util import (
     identify_workload_type,
 )
 from src.lib.integration.dataset_creator import DatasetCreator
-from src.lib.integration.es_client import delete_embeddings_index, get_es_client
 from src.lib.integration.mlflow_client import MLflowClient
 from src.lib.integration.record_exporter import RecordExporter
 from src.lib.nemo.customizer import Customizer
@@ -220,7 +219,7 @@ def create_datasets(previous_result: TaskResult) -> TaskResult:
 
         # The dataset creator is used to create the datasets.
         # This validates to ensures that the datasets are created in the correct format for the evaluation and customization.
-        index_name, datasets = DatasetCreator(
+        datasets = DatasetCreator(
             records,
             flywheel_run_id,
             "",
@@ -248,31 +247,6 @@ def create_datasets(previous_result: TaskResult) -> TaskResult:
         db_manager.mark_all_nims_status(previous_result.flywheel_run_id, status, error_msg=str(e))
         # Return a TaskResult so that downstream tasks can gracefully short-circuit
         raise e
-    finally:
-        # shutdown the deployment after creating the datasets
-        if settings.icl_config.example_selection == "semantic_similarity":
-            # cleanup: remove the embedding index
-            if index_name:
-                es_client = get_es_client()
-                delete_embeddings_index(es_client, index_name)
-            if (
-                settings.icl_config.similarity_config.embedding_nim_config.deployment_type
-                == "local"
-            ):
-                # shutdown the deployment if any error occurs
-                nim_config = EmbeddingConfig(
-                    **settings.icl_config.similarity_config.embedding_nim_config.model_dump()
-                )
-                dms_client = DMSClient(nmp_config=settings.nmp_config, nim=nim_config)
-                logger.info(f"Shutting down the embedding NIM: {nim_config.model_name}")
-                try:
-                    dms_client.shutdown_deployment()
-                except Exception as e:
-                    logger.error(
-                        f"Error shutting down the embedding NIM {nim_config.model_name}: {e}"
-                    )
-                    previous_result.error = str(e)
-                    raise e
 
 
 @celery_app.task(name="tasks.wait_for_llm_as_judge", pydantic=True)
@@ -480,16 +454,11 @@ def run_base_eval(previous_result: TaskResult) -> TaskResult:
     return run_generic_eval(previous_result, EvalType.BASE, DatasetType.BASE)
 
 
-@celery_app.task(name="tasks.run_icl_eval", pydantic=True)
-def run_icl_eval(previous_result: TaskResult) -> TaskResult:
-    return run_generic_eval(previous_result, EvalType.ICL, DatasetType.ICL)
-
-
 def run_generic_eval(
     previous_result: TaskResult, eval_type: EvalType, dataset_type: DatasetType
 ) -> TaskResult:
     """
-    Run the Base/ICL/Customization evaluation against the NIM based on the eval_type.
+    Run the Base/Customization evaluation against the NIM based on the eval_type.
     Takes the NIM details from the previous task.
     """
     # if there any error in the previous task, we need to gracefully skip the evaluation.
@@ -1104,21 +1073,9 @@ def run_nim_workflow_dag(
 
     # Convert data_split_config to DataSplitConfig if provided
     split_config = DataSplitConfig(**data_split_config) if data_split_config else None
-    icl_config = settings.icl_config
 
-    # Create dataset workflow chain (conditionally includes embedding workflow)
-    if (
-        icl_config.example_selection == "semantic_similarity"
-        and icl_config.similarity_config.embedding_nim_config.deployment_type == "local"
-    ):
-        dataset_workflow = chain(
-            spin_up_nim.s(
-                nim_config=icl_config.similarity_config.embedding_nim_config.model_dump(),
-            ),
-            create_datasets.s(),
-        )
-    else:
-        dataset_workflow = create_datasets.s()
+    # Create dataset workflow (no longer needs embedding setup since ICL is removed)
+    dataset_workflow = create_datasets.s()
 
     # Create a group of chains for each NIM
     nim_chains = []
@@ -1129,7 +1086,6 @@ def run_nim_workflow_dag(
             spin_up_nim.s(nim_config=nim.model_dump()),  # Convert NIMConfig to dict
             group(
                 run_base_eval.s(),
-                run_icl_eval.s(),
                 chain(
                     start_customization.s(),
                     run_customization_eval.s(),

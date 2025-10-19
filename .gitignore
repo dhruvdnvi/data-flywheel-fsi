@@ -19,3 +19,5 @@ tmp
 
 # Jupyter Notebook
 .ipynb_checkpoints
+
+*-helm-*
