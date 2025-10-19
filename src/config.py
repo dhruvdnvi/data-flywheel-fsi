@@ -106,6 +106,19 @@ class LoRAConfig(BaseModel):
     adapter_dropout: float = Field(default=0.1, description="Adapter dropout")
 
 
+class EvaluationConfig(BaseModel):
+    """Configuration for evaluation strategy"""
+
+    workload_type: Literal["auto", "generic", "tool_calling"] = Field(
+        default="auto",
+        description="Workload type: 'auto' (auto-detect), 'generic' (F1 score), or 'tool_calling' (function metrics)",
+    )
+    tool_eval_type: Literal["tool-calling-metric", "tool-calling-judge"] = Field(
+        default="tool-calling-metric",
+        description="For tool_calling workloads: 'tool-calling-metric' (exact match) or 'tool-calling-judge' (LLM judge)",
+    )
+
+
 class TrainingConfig(BaseModel):
     training_type: str = Field(default="sft", description="Training type")
     finetuning_type: str = Field(default="lora", description="Finetuning type")
@@ -371,6 +384,7 @@ class Settings(BaseSettings):
     llm_judge_config: LLMJudgeConfig
     training_config: TrainingConfig
     data_split_config: DataSplitConfig
+    evaluation_config: EvaluationConfig = Field(default_factory=EvaluationConfig)
     icl_config: ICLConfig | None = None  # Made optional since ICL is no longer used
     logging_config: LoggingConfig = Field(default_factory=LoggingConfig)
     mlflow_config: MLflowConfig = Field(default_factory=MLflowConfig)

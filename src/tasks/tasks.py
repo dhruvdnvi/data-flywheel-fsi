@@ -215,7 +215,10 @@ def create_datasets(previous_result: TaskResult) -> TaskResult:
 
         # The workload type is identified based on the records.
         # This is used to determine the type of evaluation to be run.
-        workload_type = identify_workload_type(records)
+        # Config can override auto-detection with explicit workload_type setting
+        workload_type = identify_workload_type(
+            records, config_override=settings.evaluation_config.workload_type
+        )
 
         # The dataset creator is used to create the datasets.
         # This validates to ensures that the datasets are created in the correct format for the evaluation and customization.
@@ -612,10 +615,13 @@ def run_generic_eval(
                     scores["tool_calling_correctness"] = results["tasks"]["custom-tool-calling"][
                         "metrics"
                     ]["correctness"]["scores"]["rating"]["value"]
+            elif previous_result.workload_type == WorkloadClassification.GENERIC:
+                if results["tasks"]["chat-completion"]:
+                    scores["f1_score"] = results["tasks"]["chat-completion"]["metrics"]["f1"][
+                        "scores"
+                    ]["f1_score"]["value"]
             else:
-                scores["similarity"] = results["tasks"]["llm-as-judge"]["metrics"]["llm-judge"][
-                    "scores"
-                ]["similarity"]["value"]
+                raise ValueError(f"Unsupported workload type: {previous_result.workload_type}")
 
             # MLflow integration - upload results if enabled
             mlflow_uri = None

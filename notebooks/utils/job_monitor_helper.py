@@ -48,6 +48,7 @@ def create_results_table(job_data):
                 "Finished": datetime.fromisoformat(eval["finished_at"]).strftime("%H:%M:%S") if eval["finished_at"] else "-"
             }
             
+            # Tool calling metrics
             if "function_name" in all_scores:
                 row["Function name accuracy"] = all_scores["function_name"]
             
@@ -57,9 +58,13 @@ def create_results_table(job_data):
             if "tool_calling_correctness" in all_scores:
                 row["Function name + args accuracy (LLM-judge)"] = all_scores["tool_calling_correctness"]
             
+            # Generic classification metrics
+            if "f1_score" in all_scores:
+                row["F1 Score"] = all_scores["f1_score"]
+            
             # Add any other scores with formatted names
             for score_name, score_value in all_scores.items():
-                if score_name not in ["function_name", "tool_calling_correctness", "similarity", "function_name_and_args_accuracy"]:
+                if score_name not in ["function_name", "tool_calling_correctness", "similarity", "function_name_and_args_accuracy", "f1_score"]:
                     formatted_name = score_name.replace("_", " ").title()
                     row[formatted_name] = score_value
             
@@ -132,29 +137,69 @@ def monitor_job(api_base_url, job_id, poll_interval):
 
             # Plot 1: Evaluation Scores
             if not results_df.empty:
-                metrics = [
+                # Detect which metrics are available (tool calling vs generic)
+                tool_calling_metrics = [
                     "Function name accuracy",
                     "Function name + args accuracy (exact-match)",
                     "Function name + args accuracy (LLM-judge)"
                 ]
-            
-                models = results_df["Model"].unique()
-            
-                for model in models:
-                    fig, ax = plt.subplots(figsize=(8, 5))
-                    model_df = results_df[results_df["Model"] == model]
-                    if not all(metric in model_df.columns for metric in metrics):
-                        continue  # skip this model for now                 
-                    plot_df = model_df.set_index("Eval Type")[metrics].T
-            
-                    # Plot bar chart for this model
-                    plot_df.plot(kind="bar", ax=ax)
-                    ax.set_title(f"Evaluation results for {model}", fontsize=12)
-                    ax.set_ylabel("Score")
+                generic_metrics = ["F1 Score"]
+                
+                # Determine which type of metrics to plot
+                available_columns = results_df.columns.tolist()
+                if any(metric in available_columns for metric in tool_calling_metrics):
+                    metrics = [m for m in tool_calling_metrics if m in available_columns]
+                elif "F1 Score" in available_columns:
+                    metrics = generic_metrics
+                else:
+                    # Use any numeric columns that aren't metadata
+                    metadata_cols = ["Model", "Eval Type", "Percent Done", "Runtime", "Status", "Started", "Finished"]
+                    metrics = [col for col in available_columns if col not in metadata_cols]
+                
+                if metrics:
+                    # Create single plot with all models
+                    fig, ax = plt.subplots(figsize=(12, 6))
+                    
+                    # Pivot the data: Index = Model, Columns = Eval Type, Values = metric scores
+                    # We need to handle multiple metrics, so we'll plot each metric
+                    models = results_df['Model'].unique()
+                    eval_types = results_df['Eval Type'].unique()
+                    
+                    # For grouped bar chart: x = models, grouped by eval_type
+                    x = range(len(models))
+                    width = 0.35
+                    multiplier = 0
+                    
+                    for eval_type in eval_types:
+                        offset = width * multiplier
+                        eval_data = results_df[results_df['Eval Type'] == eval_type]
+                        
+                        # Get the metric values for this eval type, ordered by model
+                        values = []
+                        for model in models:
+                            model_data = eval_data[eval_data['Model'] == model]
+                            if not model_data.empty and metrics[0] in model_data.columns:
+                                values.append(model_data[metrics[0]].values[0])
+                            else:
+                                values.append(0)
+                        
+                        ax.bar([xi + offset for xi in x], values, width, label=eval_type)
+                        multiplier += 1
+                    
+                    ax.set_xlabel('Model', fontsize=11)
+                    ax.set_ylabel('Score', fontsize=11)
+                    ax.set_title('Evaluation Results', fontsize=14, fontweight='bold')
+                    ax.set_xticks([xi + width/2 for xi in x])
+                    ax.set_xticklabels(models, rotation=45, ha='right')
+                    ax.legend(title='Eval Type')
                     ax.set_ylim(0, 1)
-                    ax.legend(title="Eval Type")
                     ax.grid(axis='y', linestyle='--', alpha=0.7)
-                    plt.xticks(rotation=30)
+                    plt.tight_layout()
+                    plt.show()
+                else:
+                    fig, ax = plt.subplots(figsize=(6, 4))
+                    ax.text(0.5, 0.5, "No Evaluation Data with Scores", ha='center', va='center')
+                    ax.set_axis_off()
                     plt.tight_layout()
                     plt.show()
             else:

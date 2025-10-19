@@ -51,6 +51,7 @@ nims:
       gpus: 1
       max_seq_length: 8192
 
+
 # Data split config:
 # train, val, eval split sizes and ratios
 data_split_config:
@@ -60,6 +61,19 @@ data_split_config:
   random_seed: null
   limit: 1000 # null means no limit
   parse_function_arguments: true # parse function arguments to JSON objects for tool calling records
+
+# Evaluation configuration
+evaluation_config:
+  # Workload type: "auto" (auto-detect), "generic", or "tool_calling"
+  # - auto: Automatically detect based on presence of tool_calls in data
+  # - generic: Force use of generic evaluation (F1 score for chat completion)
+  # - tool_calling: Force use of tool calling evaluation (function name accuracy, etc.)
+  workload_type: "auto"
+  
+  # For tool_calling workloads, specify which evaluation type to use:
+  # - tool-calling-metric: Use exact match metrics (function name, args)
+  # - tool-calling-judge: Use LLM-as-judge for correctness (requires llm_judge_config)
+  tool_eval_type: "tool-calling-metric"
 
 # Training config:
 # Customization config with default values

@@ -78,12 +78,30 @@ def get_tool_name(record: Record) -> str:
     return "no_tool"
 
 
-def identify_workload_type(records: list[Record]) -> WorkloadClassification:
+def identify_workload_type(
+    records: list[Record], config_override: str | None = None
+) -> WorkloadClassification:
     """
     Identify the type of workload from the response.
+    
+    Args:
+        records: List of records to analyze
+        config_override: Optional override from evaluation_config.workload_type
+                        Can be "auto", "generic", or "tool_calling"
+    
+    Returns:
+        WorkloadClassification enum
     """
     from src.api.models import WorkloadClassification
 
+    # If config explicitly sets the workload type (not "auto"), use it
+    if config_override and config_override != "auto":
+        if config_override == "generic":
+            return WorkloadClassification.GENERIC
+        elif config_override == "tool_calling":
+            return WorkloadClassification.TOOL_CALLING
+
+    # Otherwise, auto-detect from the data
     # Check for tool calls in response messages
     for record in records:
         try:

@@ -15,7 +15,8 @@ NAMESPACE="default"
 REQUIRED_DISK_GB=200
 REQUIRED_GPUS=2
 NGC_API_KEY="${NGC_API_KEY:-}"
-HELM_CHART_URL="https://helm.ngc.nvidia.com/nvidia/nemo-microservices/charts/nemo-microservices-helm-chart-25.10.0.tgz"
+HELM_CHART_REPO="nvidia/nemo-microservices-helm-chart"
+HELM_CHART_VERSION=""  # Empty string means use latest version
 ADDITIONAL_VALUES_FILES=(demo-values.yaml)
 
 # === Progress Bar Config ===
@@ -220,8 +221,8 @@ Usage: $0 [OPTIONS]
 Setup and deploy NeMo microservices on Minikube.
 
 Options:
-  --helm-chart-url URL    Override the default helm chart URL
-                          Default: $HELM_CHART_URL
+  --helm-chart-version VER    Override the default helm chart version (default: latest)
+                          Example: --helm-chart-version 25.10.0
   --values-file FILE      Path to a values file (can be specified multiple times). Not required.
   --progress              Show progress bar and suppress detailed output
   --help                  Show this help message
@@ -253,8 +254,8 @@ EOF
 parse_args() {
   while [[ $# -gt 0 ]]; do
     case $1 in
-      --helm-chart-url)
-        HELM_CHART_URL="$2"
+      --helm-chart-version)
+        HELM_CHART_VERSION="$2"
         shift 2
         ;;
       --values-file)
@@ -479,6 +480,7 @@ start_minikube() {
     --container-runtime=docker \
     --cpus=no-limit \
     --memory=no-limit \
+    --disk-size=500g \
     --gpus=all \
     $extra_args
 
@@ -496,7 +498,7 @@ start_minikube() {
   [Service]
   Type=oneshot
   ExecStartPre=/bin/bash -c 'until docker info >/dev/null 2>&1; do echo "Waiting for Docker..."; sleep 1; done'
-  ExecStart=/usr/local/bin/minikube start
+  ExecStart=/usr/local/bin/minikube start --disk-size=500g
   RemainAfterExit=true
   ExecStop=/usr/local/bin/minikube stop
   StandardOutput=journal
@@ -608,8 +610,17 @@ EOF
     helm_args+=("-f" "$values_file")
   done
 
+  # Build version argument if specified
+  local version_arg=""
+  if [[ -n "$HELM_CHART_VERSION" ]]; then
+    version_arg="--version $HELM_CHART_VERSION"
+    log "Using Helm chart version: $HELM_CHART_VERSION"
+  else
+    log "Using latest Helm chart version"
+  fi
+
   # Need to fetch and untar for the volcano installation
-  helm fetch --untar "$HELM_CHART_URL" \
+  helm fetch --untar "$HELM_CHART_REPO" $version_arg \
       --username='$oauthtoken' \
       --password=$NGC_API_KEY
 }
@@ -621,7 +632,13 @@ install_nemo_microservices () {
 
   sleep 15
 
-  helm install nemo "$HELM_CHART_URL" -f demo-values.yaml --namespace "$NAMESPACE" \
+  # Build version argument if specified
+  local version_arg=""
+  if [[ -n "$HELM_CHART_VERSION" ]]; then
+    version_arg="--version $HELM_CHART_VERSION"
+  fi
+
+  helm install nemo "$HELM_CHART_REPO" $version_arg -f demo-values.yaml --namespace "$NAMESPACE" \
     --username='$oauthtoken' \
     --password=$NGC_API_KEY
 

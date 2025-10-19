@@ -141,17 +141,19 @@ class MLflowClient:
                     "prompt_tokens": usage.get("prompt_tokens"),
                     "completion_tokens": usage.get("completion_tokens"),
                 }
-            else:
-                # Generic metrics (llm-as-judge)
+            elif workload_type == WorkloadClassification.GENERIC:
+                # Generic metrics (f1 score for chat-completion)
                 return {
-                    "similarity": metrics.get("llm-judge", {})
+                    "f1_score": metrics.get("f1", {})
                     .get("scores", {})
-                    .get("similarity", {})
+                    .get("f1_score", {})
                     .get("value"),
                     "total_tokens": usage.get("total_tokens"),
                     "prompt_tokens": usage.get("prompt_tokens"),
                     "completion_tokens": usage.get("completion_tokens"),
                 }
+            else:
+                raise ValueError(f"Unsupported workload type: {workload_type}")
         except Exception as e:
             logger.error(f"Error extracting metrics: {e!s}")
             return {}
@@ -215,12 +217,12 @@ class MLflowClient:
             results = self._load_results(results_path)
 
             # Group by model (if needed)
-            # custom-tool-calling if TOOL_CALLING else llm-as-judge if generic
+            # custom-tool-calling if TOOL_CALLING else chat-completion if generic
             model_evaluations = {}
             task_key = (
                 "custom-tool-calling"
                 if workload_type == WorkloadClassification.TOOL_CALLING
-                else "llm-as-judge"
+                else "chat-completion"
             )
             for item in results.get(task_key, []):
                 metadata = self._extract_metadata(item)
@@ -278,13 +280,15 @@ class MLflowClient:
                             "prompt_tokens",
                             "completion_tokens",
                         ]
-                    else:
+                    elif workload_type == WorkloadClassification.GENERIC:
                         metric_columns = [
-                            "similarity",
+                            "f1_score",
                             "total_tokens",
                             "prompt_tokens",
                             "completion_tokens",
                         ]
+                    else:
+                        raise ValueError(f"Unsupported workload type: {workload_type}")
 
                     for col in metric_columns:
                         if col in metrics_df.columns:
