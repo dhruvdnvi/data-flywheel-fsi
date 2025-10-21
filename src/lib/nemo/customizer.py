@@ -133,6 +133,7 @@ class Customizer:
                 "epochs": training_config.epochs,
                 "batch_size": training_config.batch_size,
                 "learning_rate": training_config.learning_rate,
+                "sequence_packing_enabled": training_config.lora.sequence_packing_enabled,
                 "lora": {
                     "adapter_dim": training_config.lora.adapter_dim,
                     "adapter_dropout": training_config.lora.adapter_dropout,

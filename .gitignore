@@ -21,3 +21,5 @@ tmp
 .ipynb_checkpoints
 
 *-helm-*
+*.log
+nemo-errors*

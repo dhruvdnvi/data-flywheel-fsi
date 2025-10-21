@@ -49,7 +49,8 @@ class DatasetType(str, Enum):
 class WorkloadClassification(str, Enum):
     """Types of workloads that can be generated."""
 
-    GENERIC = "generic"
+    CLASSIFICATION = "classification"
+    GENERIC = "classification"  # Alias for backward compatibility
     TOOL_CALLING = "tool_calling"
 
 

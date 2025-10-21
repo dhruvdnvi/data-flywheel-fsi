@@ -104,6 +104,7 @@ class ICLConfig(BaseModel):
 class LoRAConfig(BaseModel):
     adapter_dim: int = Field(default=32, description="Adapter dimension")
     adapter_dropout: float = Field(default=0.1, description="Adapter dropout")
+    sequence_packing_enabled: bool = Field(default=True, description="Enable sequence packing for efficient training")
 
 
 class EvaluationConfig(BaseModel):

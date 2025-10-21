@@ -51,7 +51,17 @@ nims:
       gpus: 1
       max_seq_length: 8192
 
-
+  - model_name: "meta/llama-3.1-8b-instruct"
+    model_type: "llm"
+    context_length: 8192
+    gpus: 1
+    pvc_size: 25Gi
+    tag: "1.8.3"
+    customization_enabled: true
+    customizer_configs:
+      target: "meta/llama-3.1-8b-instruct@2.0"
+      gpus: 1
+      max_seq_length: 8192
 # Data split config:
 # train, val, eval split sizes and ratios
 data_split_config:
@@ -59,14 +69,14 @@ data_split_config:
   val_ratio: 0.1
   min_total_records: 50
   random_seed: null
-  limit: 1000 # null means no limit
+  limit: 100000 # Large number to effectively have no limit
   parse_function_arguments: true # parse function arguments to JSON objects for tool calling records
 
 # Evaluation configuration
 evaluation_config:
-  # Workload type: "auto" (auto-detect), "generic", or "tool_calling"
+  # Workload type: "auto" (auto-detect), "classification", or "tool_calling"
   # - auto: Automatically detect based on presence of tool_calls in data
-  # - generic: Force use of generic evaluation (F1 score for chat completion)
+  # - classification: Force use of classification evaluation (F1 score for chat completion)
   # - tool_calling: Force use of tool calling evaluation (function name accuracy, etc.)
   workload_type: "auto"
   
@@ -85,7 +95,8 @@ training_config:
   learning_rate: 0.0001
 
 # LoRA config:
-# adapter dimension, adapter dropout
+# adapter dimension, adapter dropout, sequence packing
 lora_config:
   adapter_dim: 32
   adapter_dropout: 0.1
+  sequence_packing_enabled: true  # Enable sequence packing for efficient training

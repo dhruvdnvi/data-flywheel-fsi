@@ -71,11 +71,52 @@ def extract_user_query(record: Record) -> str | None:
 
 
 def get_tool_name(record: Record) -> str:
-    """Get the tool name from the record."""
+    """Get the tool name from the record (for tool calling workloads)."""
     tool_calls = record["response"]["choices"][0]["message"].get("tool_calls")
     if tool_calls and len(tool_calls) > 0:
         return tool_calls[0]["function"]["name"]
     return "no_tool"
+
+
+def get_classification_label(record: Record) -> str:
+    """
+    Extract classification label from message content.
+    Expects labels in format: [[label]] or [[[[label]]]]
+    Returns normalized lowercase label.
+    """
+    try:
+        content = record["response"]["choices"][0]["message"].get("content", "")
+        if not content:
+            return "unknown"
+        
+        # Extract content between [[ and ]]
+        import re
+        match = re.search(r'\[\[+(.+?)\]\]+', content)
+        if match:
+            label = match.group(1).strip().lower()
+            return label
+        return "unknown"
+    except (KeyError, IndexError, AttributeError):
+        return "unknown"
+
+
+def get_label_for_stratification(record: Record, workload_type: "WorkloadClassification") -> str:
+    """
+    Get label for stratification based on workload type.
+    
+    Args:
+        record: Record to extract label from
+        workload_type: Type of workload (CLASSIFICATION, TOOL_CALLING, etc.)
+    
+    Returns:
+        Label string for stratification
+    """
+    from src.api.models import WorkloadClassification
+    
+    if workload_type == WorkloadClassification.TOOL_CALLING:
+        return get_tool_name(record)
+    else:  # CLASSIFICATION or GENERIC
+        return get_classification_label(record)
 
 
 def identify_workload_type(
@@ -87,7 +128,7 @@ def identify_workload_type(
     Args:
         records: List of records to analyze
         config_override: Optional override from evaluation_config.workload_type
-                        Can be "auto", "generic", or "tool_calling"
+                        Can be "auto", "generic", "classification", or "tool_calling"
     
     Returns:
         WorkloadClassification enum
@@ -96,8 +137,8 @@ def identify_workload_type(
 
     # If config explicitly sets the workload type (not "auto"), use it
     if config_override and config_override != "auto":
-        if config_override == "generic":
-            return WorkloadClassification.GENERIC
+        if config_override in ("generic", "classification"):
+            return WorkloadClassification.CLASSIFICATION
         elif config_override == "tool_calling":
             return WorkloadClassification.TOOL_CALLING
 
@@ -111,7 +152,7 @@ def identify_workload_type(
         except (KeyError, IndexError):
             continue
 
-    return WorkloadClassification.GENERIC
+    return WorkloadClassification.CLASSIFICATION
 
 
 def format_evaluator(records: list[Record]) -> list[Record]:
@@ -175,13 +216,30 @@ def _safe_stratified_split(data, labels, test_size, seed):
 
 
 def split_records(
-    records: list[Record], split_config: DataSplitConfig
+    records: list[Record], 
+    split_config: DataSplitConfig,
+    workload_type: "WorkloadClassification | None" = None
 ) -> tuple[list[Record], list[Record], list[Record]]:
-    """Split records into eval, train, and validation sets with class-aware splitting."""
+    """
+    Split records into eval, train, and validation sets with class-aware splitting.
+    
+    Args:
+        records: List of records to split
+        split_config: Configuration for splitting
+        workload_type: Type of workload for label extraction (auto-detected if None)
+    
+    Returns:
+        Tuple of (eval_records, train_records, val_records)
+    """
     if split_config.random_seed is not None:
         np.random.seed(split_config.random_seed)  # for sklearn
 
-    labels = [get_tool_name(r) for r in records]
+    # Auto-detect workload type if not provided
+    if workload_type is None:
+        workload_type = identify_workload_type(records)
+    
+    # Extract labels using workload-aware label extraction
+    labels = [get_label_for_stratification(r, workload_type) for r in records]
     counts = Counter(labels)
 
     # Create stratify_label: rare classes are grouped as "others"
@@ -199,7 +257,7 @@ def split_records(
     )
 
     # Train/val split from remaining records
-    rest_labels = [get_tool_name(r) for r in rest_records]
+    rest_labels = [get_label_for_stratification(r, workload_type) for r in rest_records]
     rest_stratify_labels = []
     rest_counts = Counter(rest_labels)
     for label in rest_labels:

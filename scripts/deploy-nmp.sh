@@ -15,7 +15,7 @@ NAMESPACE="default"
 REQUIRED_DISK_GB=200
 REQUIRED_GPUS=2
 NGC_API_KEY="${NGC_API_KEY:-}"
-HELM_CHART_REPO="nvidia/nemo-microservices-helm-chart"
+HELM_CHART_REPO="nemo-microservices/nemo-microservices-helm-chart"
 HELM_CHART_VERSION=""  # Empty string means use latest version
 ADDITIONAL_VALUES_FILES=(demo-values.yaml)
 
@@ -480,7 +480,6 @@ start_minikube() {
     --container-runtime=docker \
     --cpus=no-limit \
     --memory=no-limit \
-    --disk-size=500g \
     --gpus=all \
     $extra_args
 
