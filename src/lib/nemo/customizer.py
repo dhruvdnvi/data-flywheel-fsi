@@ -315,6 +315,14 @@ class Customizer:
                     progress_callback({"progress": 0.0, "error": error_message})
                 raise Exception(error_message)
 
+            elif current_status == "cancelled":
+                # Job was cancelled externally
+                error_message = f"Job {job_id} was cancelled"
+                logger.info(error_message)
+                if progress_callback:
+                    progress_callback({"progress": 0.0, "error": error_message})
+                raise Exception(error_message)
+
             elif current_status == "running":
                 # Get progress information
                 progress = float(status_response.get("percentage_done", 0))

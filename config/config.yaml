@@ -91,12 +91,12 @@ training_config:
   training_type: "sft"
   finetuning_type: "lora"
   epochs: 2
-  batch_size: 16
+  batch_size: 32
   learning_rate: 0.0001
 
 # LoRA config:
 # adapter dimension, adapter dropout, sequence packing
 lora_config:
-  adapter_dim: 32
+  adapter_dim: 16
   adapter_dropout: 0.1
-  sequence_packing_enabled: true  # Enable sequence packing for efficient training
+  sequence_packing_enabled: true  # Enable sequence packing for efficient training (boolean, not string!)
