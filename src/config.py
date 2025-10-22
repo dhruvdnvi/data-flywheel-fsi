@@ -46,6 +46,15 @@ class DataSplitConfig(BaseModel):
     parse_function_arguments: bool = Field(
         default=True, description="Data Validation: Parse function arguments to JSON"
     )
+    stratify_enabled: bool = Field(
+        default=True, description="Enable stratified splitting to maintain class balance"
+    )
+    min_samples_per_class: int = Field(
+        default=2, description="Minimum samples required per class for stratification"
+    )
+    rare_class_threshold: int = Field(
+        default=1, description="Group classes with <= this many samples as 'others'"
+    )
 
 
 class SimilarityConfig(BaseModel):
@@ -110,9 +119,9 @@ class LoRAConfig(BaseModel):
 class EvaluationConfig(BaseModel):
     """Configuration for evaluation strategy"""
 
-    workload_type: Literal["auto", "generic", "tool_calling"] = Field(
+    workload_type: Literal["auto", "classification", "tool_calling"] = Field(
         default="auto",
-        description="Workload type: 'auto' (auto-detect), 'generic' (F1 score), or 'tool_calling' (function metrics)",
+        description="Workload type: 'auto' (auto-detect), 'classification' (F1 score), or 'tool_calling' (function metrics)",
     )
     tool_eval_type: Literal["tool-calling-metric", "tool-calling-judge"] = Field(
         default="tool-calling-metric",

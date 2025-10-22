@@ -197,10 +197,17 @@ def format_evaluator(records: list[Record]) -> list[Record]:
     return formatted_records
 
 
-def _safe_stratified_split(data, labels, test_size, seed):
+def _safe_stratified_split(data, labels, test_size, seed, stratify_enabled=True):
     """
     Split dataset with stratification.
     stratify the data if the number of classes is greater than 1 and the test size is greater than or equal to the number of classes.
+    
+    Args:
+        data: Data to split
+        labels: Labels for stratification
+        test_size: Size of test split (int or float)
+        seed: Random seed
+        stratify_enabled: Whether to enable stratification
     """
     try:
         from sklearn.model_selection import train_test_split
@@ -211,7 +218,11 @@ def _safe_stratified_split(data, labels, test_size, seed):
         ) from None
 
     num_classes = len(set(labels))
-    stratify = labels if (num_classes > 1 and test_size >= num_classes) else None
+    stratify = None
+    
+    if stratify_enabled and num_classes > 1 and test_size >= num_classes:
+        stratify = labels
+    
     return train_test_split(data, test_size=test_size, stratify=stratify, random_state=seed)
 
 
@@ -241,34 +252,65 @@ def split_records(
     # Extract labels using workload-aware label extraction
     labels = [get_label_for_stratification(r, workload_type) for r in records]
     counts = Counter(labels)
+    
+    # Log stratification status
+    logger.info(
+        f"Stratification {'enabled' if split_config.stratify_enabled else 'disabled'} "
+        f"for {len(records)} records with {len(counts)} unique classes"
+    )
+    logger.info(f"Class distribution: {dict(counts)}")
 
     # Create stratify_label: rare classes are grouped as "others"
     stratify_labels = []
+    rare_classes = []
     for label in labels:
-        if counts[label] == 1:
+        if counts[label] <= split_config.rare_class_threshold:
             stratify_labels.append("others")
+            if label not in rare_classes:
+                rare_classes.append(label)
         else:
             stratify_labels.append(label)
+    
+    if rare_classes:
+        logger.warning(
+            f"Grouping {len(rare_classes)} rare classes as 'others' "
+            f"(threshold: {split_config.rare_class_threshold}): {rare_classes}"
+        )
 
     # Eval split using stratify_labels
     eval_size = min(split_config.eval_size, len(records))
     rest_records, eval = _safe_stratified_split(
-        records, stratify_labels, eval_size, split_config.random_seed
+        records, stratify_labels, eval_size, split_config.random_seed,
+        stratify_enabled=split_config.stratify_enabled
     )
+    
+    # Log eval split distribution
+    eval_labels = [get_label_for_stratification(r, workload_type) for r in eval]
+    eval_counts = Counter(eval_labels)
+    logger.info(f"Eval split ({len(eval)} records) distribution: {dict(eval_counts)}")
 
     # Train/val split from remaining records
     rest_labels = [get_label_for_stratification(r, workload_type) for r in rest_records]
     rest_stratify_labels = []
     rest_counts = Counter(rest_labels)
     for label in rest_labels:
-        if rest_counts[label] == 1:
+        if rest_counts[label] <= split_config.rare_class_threshold:
             rest_stratify_labels.append("others")
         else:
             rest_stratify_labels.append(label)
 
     train, val = _safe_stratified_split(
-        rest_records, rest_stratify_labels, split_config.val_ratio, split_config.random_seed
+        rest_records, rest_stratify_labels, split_config.val_ratio, split_config.random_seed,
+        stratify_enabled=split_config.stratify_enabled
     )
+    
+    # Log train/val split distributions
+    train_labels = [get_label_for_stratification(r, workload_type) for r in train]
+    val_labels = [get_label_for_stratification(r, workload_type) for r in val]
+    train_counts = Counter(train_labels)
+    val_counts = Counter(val_labels)
+    logger.info(f"Train split ({len(train)} records) distribution: {dict(train_counts)}")
+    logger.info(f"Val split ({len(val)} records) distribution: {dict(val_counts)}")
 
     return eval, train, val
 
