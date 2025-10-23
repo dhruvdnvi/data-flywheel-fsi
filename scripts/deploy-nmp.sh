@@ -609,6 +609,15 @@ EOF
     helm_args+=("-f" "$values_file")
   done
 
+  # Add NGC Helm repository if not already added
+  if ! helm repo list | grep -q "^nemo-microservices"; then
+    log "Adding NGC Helm repository..."
+    helm repo add nemo-microservices https://helm.ngc.nvidia.com/nvidia/nemo-microservices \
+      --username='$oauthtoken' \
+      --password=$NGC_API_KEY
+    helm repo update
+  fi
+
   # Build version argument if specified
   local version_arg=""
   if [[ -n "$HELM_CHART_VERSION" ]]; then
@@ -619,7 +628,7 @@ EOF
   fi
 
   # Need to fetch and untar for the volcano installation
-  helm fetch --untar "$HELM_CHART_REPO" $version_arg \
+  helm pull --untar "$HELM_CHART_REPO" $version_arg \
       --username='$oauthtoken' \
       --password=$NGC_API_KEY
 }
