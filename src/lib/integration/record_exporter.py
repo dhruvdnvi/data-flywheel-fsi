@@ -32,8 +32,9 @@ class RecordExporter:
         }
 
         # Use scroll API for large datasets
-        max_records = split_config.limit * 2
-        scroll_size = min(1000, max_records)  # Process in chunks of 1000
+        # If limit is None, fetch all records; otherwise fetch 2x the limit for train/val splitting
+        max_records = float('inf') if split_config.limit is None else split_config.limit * 2
+        scroll_size = min(1000, max_records) if max_records != float('inf') else 1000  # Process in chunks of 1000
 
         # Initial search with scroll
         response = self.es_client.search(

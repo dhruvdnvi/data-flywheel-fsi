@@ -38,7 +38,7 @@ class DataValidator:
         self.openai_validator = OpenAIFormatValidator()
 
     def validate_records_count(
-        self, record_length: int, min_total_records: int, eval_size: int, limit: int
+        self, record_length: int, min_total_records: int, eval_size: int, limit: int | None
     ) -> None:
         if record_length < min_total_records:
             msg = (
@@ -57,7 +57,8 @@ class DataValidator:
             logger.error(msg)
             raise ValueError(msg)
 
-        if limit < min_total_records:
+        # Only validate limit if it's not None (None means use all available data)
+        if limit is not None and limit < min_total_records:
             msg = (
                 "limit cannot be less than the minimum number of records. "
                 + f"limit is {limit}, but the minimum number of records is {min_total_records}."
