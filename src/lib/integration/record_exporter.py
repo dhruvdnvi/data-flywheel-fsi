@@ -32,9 +32,8 @@ class RecordExporter:
         }
 
         # Use scroll API for large datasets
-        # If limit is None, fetch all records; otherwise fetch 2x the limit for train/val splitting
-        max_records = float('inf') if split_config.limit is None else split_config.limit * 2
-        scroll_size = min(1000, max_records) if max_records != float('inf') else 1000  # Process in chunks of 1000
+        # Fetch all records first, then we'll handle limiting later
+        scroll_size = 1000  # Process in chunks of 1000
 
         # Initial search with scroll
         response = self.es_client.search(
@@ -45,6 +44,8 @@ class RecordExporter:
         )
 
         records = []
+        # If limit is None, fetch all records; otherwise fetch 2x the limit for train/val splitting
+        max_records = None if split_config.limit is None else split_config.limit * 2
 
         try:
             # Extract records from initial response first
@@ -60,13 +61,20 @@ class RecordExporter:
                 return records  # Return what we have and exit early
 
             # Continue scrolling until we have enough records or no more data
-            while len(hits) > 0 and len(records) < max_records:
+            while len(hits) > 0:
+                # If we have a limit and reached it, stop
+                if max_records is not None and len(records) >= max_records:
+                    break
+                    
                 response = self.es_client.scroll(scroll_id=scroll_id, scroll="2m")
                 hits = response["hits"]["hits"]
 
                 # Process hits first, even if scroll context might be lost
-                remaining_needed = max_records - len(records)
-                new_records = [hit["_source"] for hit in hits[:remaining_needed]]
+                if max_records is not None:
+                    remaining_needed = max_records - len(records)
+                    new_records = [hit["_source"] for hit in hits[:remaining_needed]]
+                else:
+                    new_records = [hit["_source"] for hit in hits]
                 records.extend(new_records)
 
                 # Check scroll_id after processing hits

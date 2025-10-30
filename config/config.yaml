@@ -69,7 +69,7 @@ data_split_config:
   val_ratio: 0.1
   min_total_records: 50
   random_seed: 42
-  limit: null  # null = use all available records after filtering
+  limit: null  # null = use all available records (ingress limit increased to 1GB)
   parse_function_arguments: true # parse function arguments to JSON objects for tool calling records
   stratify_enabled: true # Enable stratified splitting to maintain class balance
   min_samples_per_class: 2 # Minimum samples required per class for stratification

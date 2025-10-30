@@ -592,7 +592,7 @@ guardrails:
 ingress:
   enabled: true
   annotations:
-    nginx.ingress.kubernetes.io/proxy-body-size: 100m
+    nginx.ingress.kubernetes.io/proxy-body-size: 1g
 
 deployment-management:
   deployments:

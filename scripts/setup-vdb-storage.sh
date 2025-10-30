@@ -2,7 +2,7 @@
 set -e
 
 MOUNT_POINT="/mnt/vdb"
-DEVICE="/dev/vda3"
+DEVICE="/dev/vda1"
 
 # Mount /dev/vdb if not already mounted
 if ! mountpoint -q "$MOUNT_POINT"; then
