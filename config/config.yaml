@@ -94,7 +94,7 @@ training_config:
   training_type: "sft"
   finetuning_type: "lora"
   epochs: 2
-  batch_size: 32
+  batch_size: 128
   learning_rate: 0.0001
 
 # LoRA config:

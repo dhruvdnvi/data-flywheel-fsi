@@ -42,7 +42,7 @@ class DataSplitConfig(BaseModel):
     )
     min_total_records: int = Field(default=50, description="Minimum total records")
     random_seed: int | None = Field(None, description="Random seed")
-    limit: int = Field(default=10000, description="Limit on number of records to evaluate")
+    limit: int | None = Field(default=None, description="Limit on number of records to evaluate")
     parse_function_arguments: bool = Field(
         default=True, description="Data Validation: Parse function arguments to JSON"
     )
