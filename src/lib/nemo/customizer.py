@@ -212,7 +212,7 @@ class Customizer:
         customized_model: str,
         flywheel_run_id: str,
         check_interval: int = 30,
-        timeout: int = 3600,
+        timeout: int = 10800,
     ) -> dict[str, Any]:
         """
         Wait for a model to be synced to the NMP.
@@ -253,7 +253,7 @@ class Customizer:
         job_id: str,
         flywheel_run_id: str,
         check_interval: int = 30,
-        timeout: int = 3600,
+        timeout: int = 10800,
         progress_callback=None,
     ) -> dict[str, Any]:
         """
@@ -262,7 +262,7 @@ class Customizer:
         Args:
             job_id: ID of the training job
             check_interval: Time in seconds between status checks (default: 30)
-            timeout: Maximum time to wait in seconds (default: 1 hour)
+            timeout: Maximum time to wait in seconds (default: 3 hours)
             progress_callback: Optional callback function for progress updates
 
         Returns:

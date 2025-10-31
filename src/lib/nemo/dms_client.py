@@ -91,13 +91,13 @@ class DMSClient:
         self,
         flywheel_run_id: str,
         progress_callback: Callable[[str], None] | None = None,
-        timeout: int = 3600,
+        timeout: int = 10800,
     ):
         """Wait for a deployment to complete.
 
         Args:
             progress_callback: Optional callback function to report progress.
-            timeout: Maximum time to wait in seconds (default: 3600)
+            timeout: Maximum time to wait in seconds (default: 10800 = 3 hours)
 
         Returns:
             Dict containing the final deployment status
@@ -133,7 +133,7 @@ class DMSClient:
         model_name: str,
         flywheel_run_id: str,
         check_interval: int = 30,
-        timeout: int = 3600,
+        timeout: int = 10800,
     ) -> dict[str, Any]:
         """
         Wait for a model to be synced to the NMP.

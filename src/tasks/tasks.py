@@ -589,7 +589,7 @@ def run_generic_eval(
                 job_id=job["job_id"],
                 flywheel_run_id=previous_result.flywheel_run_id,
                 polling_interval=5,
-                timeout=3600,
+                timeout=10800,
                 progress_callback=job["progress_callback"],
             )
 

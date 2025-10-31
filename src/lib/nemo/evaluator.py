@@ -354,7 +354,7 @@ class Evaluator:
         job_id: str,
         flywheel_run_id: str,
         polling_interval: int = 10,
-        timeout: int = 6000,
+        timeout: int = 10800,
         progress_callback=None,
     ) -> dict[str, Any]:
         """

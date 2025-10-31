@@ -73,6 +73,17 @@ if [ -z "$MOUNT_POINT" ]; then
     MOUNT_POINT="${MOUNT_POINT:-/mnt/sda2}"
 fi
 
+# Validate that mount point is not a device path
+if [[ "$MOUNT_POINT" =~ ^/dev/ ]]; then
+    echo "Error: Mount point cannot be a device path (e.g., /dev/sda2)"
+    echo "       The mount point should be a directory where the device will be mounted"
+    echo "       Example: -m /mnt/sda2 -d /dev/sda2"
+    echo ""
+    echo "Suggested correction for your command:"
+    echo "  bash $0 -m /mnt/$(basename "$MOUNT_POINT") -d $DEVICE"
+    exit 1
+fi
+
 # Derive device name from mount point if not provided
 if [ -z "$DEVICE" ]; then
     DEVICE="/dev/$(basename "$MOUNT_POINT")"
