@@ -143,6 +143,15 @@ install_dependency() {
       log "Installing minikube via direct download..."
       curl -LO https://github.com/kubernetes/minikube/releases/latest/download/minikube-linux-amd64
       maybe_sudo install minikube-linux-amd64 /usr/local/bin/minikube && rm minikube-linux-amd64
+      
+      # Verify installation
+      if command -v minikube >/dev/null 2>&1; then
+        log "minikube installed successfully."
+        return 0
+      else
+        err "Failed to install minikube. Please try installing it manually."
+        return 1
+      fi
       ;;
 
     kubectl)
@@ -150,6 +159,15 @@ install_dependency() {
       curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
       maybe_sudo mv kubectl /usr/local/bin/
       maybe_sudo chmod +x /usr/local/bin/kubectl
+      
+      # Verify installation
+      if command -v kubectl >/dev/null 2>&1; then
+        log "kubectl installed successfully."
+        return 0
+      else
+        err "Failed to install kubectl. Please try installing it manually."
+        return 1
+      fi
       ;;
 
     helm)
@@ -158,6 +176,15 @@ install_dependency() {
       tar -zxvf helm.tar.gz
       maybe_sudo mv linux-amd64/helm /usr/local/bin/helm
       rm -rf helm.tar.gz linux-amd64
+      
+      # Verify installation
+      if command -v helm >/dev/null 2>&1; then
+        log "helm installed successfully."
+        return 0
+      else
+        err "Failed to install helm. Please try installing it manually."
+        return 1
+      fi
       ;;
 
     huggingface-cli)
@@ -176,6 +203,18 @@ install_dependency() {
       # Add ~/.local/bin to PATH immediately after installation
       export PATH="$HOME/.local/bin:$PATH"
       log "Added $HOME/.local/bin to PATH"
+      
+      # Verify installation - check either CLI or Python module
+      if command -v huggingface-cli >/dev/null 2>&1; then
+        log "huggingface-cli installed successfully."
+        return 0
+      elif python3 -c "import huggingface_hub" 2>/dev/null; then
+        log "huggingface_hub Python module installed successfully."
+        return 0
+      else
+        err "Failed to install huggingface-cli or huggingface_hub module. Please try installing it manually."
+        return 1
+      fi
       ;;
 
     jq)
@@ -189,6 +228,15 @@ install_dependency() {
         maybe_sudo mv "$tmp_dir/jq" /usr/local/bin/jq
         rm -rf "$tmp_dir"
       }
+      
+      # Verify installation
+      if command -v jq >/dev/null 2>&1; then
+        log "jq installed successfully."
+        return 0
+      else
+        err "Failed to install jq. Please try installing it manually."
+        return 1
+      fi
       ;;
 
     yq)
@@ -196,6 +244,15 @@ install_dependency() {
       curl -L https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -o yq
       chmod +x yq
       maybe_sudo mv yq /usr/local/bin/
+      
+      # Verify installation
+      if command -v yq >/dev/null 2>&1; then
+        log "yq installed successfully."
+        return 0
+      else
+        err "Failed to install yq. Please try installing it manually."
+        return 1
+      fi
       ;;
 
     *)
@@ -204,14 +261,8 @@ install_dependency() {
       ;;
   esac
 
-  # Verify installation
-  if command -v "$tool" >/dev/null 2>&1; then
-    log "$tool installed successfully."
-    return 0
-  else
-    err "Failed to install $tool. Please try installing it manually."
-    return 1
-  fi
+  # Note: Tool-specific verification is handled in each case block above
+  # This generic check was removed to avoid false negatives
 }
 
 show_help() {
@@ -451,7 +502,12 @@ check_prereqs() {
     else
       warn "huggingface-cli is required but not found. Attempting to install..."
       if ! install_dependency "huggingface-cli"; then
-        die "Please install huggingface-cli manually and try again"
+        # Try to verify if Python module is available as fallback
+        if python3 -c "import huggingface_hub" 2>/dev/null; then
+          log "huggingface_hub Python module is available, which may be sufficient"
+        else
+          die "Please install huggingface-cli manually and try again"
+        fi
       fi
     fi
   fi

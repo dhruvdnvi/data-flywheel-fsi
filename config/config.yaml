@@ -26,17 +26,17 @@ llm_judge_config:
   model_name: "meta/llama-3.1-70b-instruct"
 
 nims:
-  # - model_name: "meta/llama-3.2-1b-instruct"
-  #   model_type: "llm"
-  #   context_length: 8192
-  #   gpus: 1
-  #   pvc_size: 25Gi
-  #   tag: "1.8.3"
-  #   customization_enabled: true
-  #   customizer_configs:
-  #     target: "meta/llama-3.2-1b-instruct@2.0"
-  #     gpus: 1
-  #     max_seq_length: 8192
+  - model_name: "meta/llama-3.2-1b-instruct"
+    model_type: "llm"
+    context_length: 8192
+    gpus: 1
+    pvc_size: 25Gi
+    tag: "1.8.3"
+    customization_enabled: true
+    customizer_configs:
+      target: "meta/llama-3.2-1b-instruct@2.0"
+      gpus: 1
+      max_seq_length: 8192
 
 
   - model_name: "meta/llama-3.2-3b-instruct"
@@ -51,17 +51,17 @@ nims:
       gpus: 1
       max_seq_length: 8192
 
-  # - model_name: "meta/llama-3.1-8b-instruct"
-  #   model_type: "llm"
-  #   context_length: 8192
-  #   gpus: 1
-  #   pvc_size: 25Gi
-  #   tag: "1.8.3"
-  #   customization_enabled: true
-  #   customizer_configs:
-  #     target: "meta/llama-3.1-8b-instruct@2.0"
-  #     gpus: 1
-  #     max_seq_length: 8192
+  - model_name: "meta/llama-3.1-8b-instruct"
+    model_type: "llm"
+    context_length: 8192
+    gpus: 1
+    pvc_size: 25Gi
+    tag: "1.8.3"
+    customization_enabled: true
+    customizer_configs:
+      target: "meta/llama-3.1-8b-instruct@2.0"
+      gpus: 1
+      max_seq_length: 8192
 # Data split config:
 # train, val, eval split sizes and ratios
 data_split_config:
