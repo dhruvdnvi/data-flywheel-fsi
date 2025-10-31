@@ -16,6 +16,10 @@ data-store:
 
 customizer:
   enabled: true
+  env:
+    NVTE_FUSED_ATTN: "0"
+    CUDNN_LOGERR_DBG: "1"
+    CUDNN_LOGDEST_DBG: "stderr"
   modelsStorage:
     storageClassName: standard
   customizationTargets:
@@ -43,7 +47,7 @@ guardrails:
 ingress:
   enabled: true
   annotations:
-    nginx.ingress.kubernetes.io/proxy-body-size: 100m
+    nginx.ingress.kubernetes.io/proxy-body-size: 1024m
 
 deployment-management:
   deployments:

@@ -1,8 +1,8 @@
 #!/bin/bash
 set -e
 
-MOUNT_POINT="/mnt/vdb"
-DEVICE="/dev/vda1"
+MOUNT_POINT="/mnt/sda2"
+DEVICE="/dev/sda2"
 
 # Mount /dev/vdb if not already mounted
 if ! mountpoint -q "$MOUNT_POINT"; then
