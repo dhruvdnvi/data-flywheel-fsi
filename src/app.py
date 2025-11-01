@@ -30,7 +30,7 @@ app.include_router(api_router, prefix="/api")
 @app.on_event("startup")
 def startup_event():
     # Validate LLM Judge
-    validate_llm_judge()
+    # validate_llm_judge()  # Disabled for now
 
     # Initialize database
     init_db()

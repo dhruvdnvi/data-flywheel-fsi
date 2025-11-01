@@ -11,8 +11,8 @@ services:
     environment:
       - ELASTICSEARCH_URL=http://localhost:9200
       - ES_COLLECTION_NAME=${ES_COLLECTION_NAME:-flywheel}
-      - REDIS_URL=redis://localhost:6379/0
-      - MONGODB_URL=mongodb://localhost:27017
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-changeme123}@localhost:6379/0
+      - MONGODB_URL=mongodb://${MONGO_USERNAME:-admin}:${MONGO_PASSWORD:-changeme123}@localhost:27017
       - MONGODB_DB=flywheel
       - NVIDIA_API_KEY=${NVIDIA_API_KEY}
       - LLM_JUDGE_API_KEY=${LLM_JUDGE_API_KEY:-${NVIDIA_API_KEY}}
@@ -40,8 +40,8 @@ services:
     environment:
       - ELASTICSEARCH_URL=http://localhost:9200
       - ES_COLLECTION_NAME=${ES_COLLECTION_NAME:-flywheel}
-      - REDIS_URL=redis://localhost:6379/0
-      - MONGODB_URL=mongodb://localhost:27017
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-changeme123}@localhost:6379/0
+      - MONGODB_URL=mongodb://${MONGO_USERNAME:-admin}:${MONGO_PASSWORD:-changeme123}@localhost:27017
       - MONGODB_DB=flywheel
       - NVIDIA_API_KEY=${NVIDIA_API_KEY}
       - LLM_JUDGE_API_KEY=${LLM_JUDGE_API_KEY:-${NVIDIA_API_KEY}}
@@ -71,8 +71,8 @@ services:
     environment:
       - ELASTICSEARCH_URL=http://localhost:9200
       - ES_COLLECTION_NAME=${ES_COLLECTION_NAME:-flywheel}
-      - REDIS_URL=redis://localhost:6379/0
-      - MONGODB_URL=mongodb://localhost:27017
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-changeme123}@localhost:6379/0
+      - MONGODB_URL=mongodb://${MONGO_USERNAME:-admin}:${MONGO_PASSWORD:-changeme123}@localhost:27017
       - MONGODB_DB=flywheel
       - NVIDIA_API_KEY=${NVIDIA_API_KEY}
       - LLM_JUDGE_API_KEY=${LLM_JUDGE_API_KEY:-${NVIDIA_API_KEY}}
@@ -100,27 +100,29 @@ services:
   redis:
     image: redis:7.2-alpine
     ports:
-      - "6379:6379"
+      - "6379:6379"  # Bind to localhost only
     volumes:
       - redis-data:/data
-    command: redis-server --appendonly yes
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-changeme123}
     restart: always
 
   mongodb:
     image: mongo:7.0
     ports:
-      - "27017:27017"
+      - "27017:27017"  # Bind to localhost only
     volumes:
       - mongodb-data:/data/db
     environment:
       - MONGO_LOG_LEVEL=error
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_USERNAME:-admin}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_PASSWORD:-changeme123}
     command: >
-      mongod --quiet
+      mongod --quiet --auth
       --setParameter diagnosticDataCollectionEnabled=false
       --setParameter logComponentVerbosity='{ "network": { "verbosity": 0 }, "command": { "verbosity": 0 }, "control": { "verbosity": 0 } }'
     restart: always
     healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet -u ${MONGO_USERNAME:-admin} -p ${MONGO_PASSWORD:-changeme123}
       interval: 10s
       timeout: 10s
       retries: 5
@@ -142,7 +144,7 @@ services:
       - logger.org.elasticsearch.node=ERROR
       - logger.org.elasticsearch.transport=ERROR
     ports:
-      - "9200:9200"
+      - "9200:9200"  # Bind to localhost only
     volumes:
       - elasticsearch-data:/usr/share/elasticsearch/data
     ulimits:

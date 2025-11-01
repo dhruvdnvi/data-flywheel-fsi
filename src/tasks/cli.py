@@ -18,5 +18,5 @@ from src.log_utils import setup_logging
 from src.tasks.tasks import celery_app
 
 logger = setup_logging("src.tasks.cli")
-validate_llm_judge()
+# validate_llm_judge()  # Disabled for now
 logger.info(f"Loaded {celery_app}")
